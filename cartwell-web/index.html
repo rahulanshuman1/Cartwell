@@ -3,28 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Cartwell – Everyday shopping</title>
-<meta name="description" content="Daily essentials delivered fast. Secure checkout.">
+<title>Cartwell – Everyday essentials, delivered fast</title>
+<meta name="description" content="Shop everyday essentials with secure checkout and easy returns.">
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="announce">Free delivery on orders above ₹499 &nbsp;·&nbsp; Secure payments with Razorpay &nbsp;·&nbsp; 10-day easy returns</div>
 <header>
-  <div class="logo">Cartwell</div>
-  <form class="search" role="search" id="sf"><input id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="60" autocomplete="off"><button type="submit">Search</button></form>
-  <button class="acct" id="acctOpen" type="button">Sign in</button>
-  <button class="cartbtn" id="cartOpen" type="button" aria-label="Open cart" style="margin-left:0">Cart (<span id="cnt">0</span>)</button>
+  <a class="brand" href="./" aria-label="Cartwell home"><span class="mark" aria-hidden="true">C</span><span class="logo">Cartwell</span></a>
+  <form class="search" role="search" id="sf">
+    <input id="q" type="search" placeholder="Search for products" aria-label="Search products" maxlength="60" autocomplete="off">
+    <button type="submit" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+  </form>
+  <nav class="actions" aria-label="Account and cart">
+    <button class="acct" id="acctOpen" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="acctLabel">Sign in</span></button>
+    <button class="cartbtn" id="cartOpen" type="button" aria-label="Open cart"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg><span>Cart</span><span class="count" id="cnt" hidden>0</span></button>
+  </nav>
 </header>
 <main class="wrap">
-  <section class="hero"><span class="tag">Festive sale</span><h1>Daily essentials, delivered fast</h1><p>Free delivery on orders above ₹499. Easy 10-day returns on everything.</p></section>
+  <section class="hero">
+    <div>
+      <span class="tag">Festive sale</span>
+      <h1>Everyday essentials, delivered fast</h1>
+      <p>Electronics, fashion, home and more at honest prices, with secure checkout and easy returns.</p>
+      <a class="cta" href="#shop">Shop now</a>
+    </div>
+    <div class="hero-art" aria-hidden="true"><span>🎧</span><span>👟</span><span>🎒</span><span>💡</span></div>
+  </section>
+  <section class="perks" aria-label="Why shop with us">
+    <div class="perk"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></div><div><strong>Free delivery</strong><span class="s">On orders above ₹499</span></div></div>
+    <div class="perk"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><strong>Secure payments</strong><span class="s">UPI, cards and net banking</span></div></div>
+    <div class="perk"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div><div><strong>Easy returns</strong><span class="s">10 days on most items</span></div></div>
+    <div class="perk"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><strong>Order history</strong><span class="s">Sign in to see your orders</span></div></div>
+  </section>
+  <h2 class="section-title" id="shop">Shop all products</h2>
   <div class="bar" id="cats" role="group" aria-label="Categories"></div>
   <div class="tools"><span id="res" aria-live="polite" class="note"></span>
-    <label style="display:flex;align-items:center;gap:6px">Sort <select id="sort"><option value="rel">Featured</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></label></div>
+    <label class="sortl">Sort by <select id="sort"><option value="rel">Featured</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></label></div>
   <div class="grid" id="grid"></div>
-  <div class="trust"><div>Secure checkout. Card and UPI details are entered only on Razorpay’s page, never on this site.</div><div>Free returns within 10 days on most items.</div><div>Sign in to see your order history, or check out as a guest.</div></div>
 </main>
+<footer>
+  <strong>Cartwell</strong>
+  <div>© 2026 Cartwell. Payments are processed securely by Razorpay. Card and UPI details never touch this site.</div>
+</footer>
 <dialog id="pd"><div class="dlg" id="pdBody"></div></dialog>
 <dialog id="cd"><div class="dlg" id="cdBody"></div></dialog>
 <dialog id="ad"><div class="dlg" id="adBody"></div></dialog>

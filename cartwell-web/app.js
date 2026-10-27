@@ -17,6 +17,15 @@ var META = {
   12: { e: "🏏", t: "#ecfccb", c: "Sports", d: "Full-size, well balanced, ideal for tennis-ball and leather practice." }
 };
 var meta = function (id) { return META[id] || { e: "📦", t: "#e5e7eb", c: "Other", d: "" }; };
+// Shows a product photo (images/<id>.jpg) when CARTWELL_PRODUCT_IMAGES is true in config.js, otherwise an emoji tile.
+function fillVisual(node, p, m) {
+  var emoji = function () { node.textContent = ""; node.appendChild(el("span", { class: "emo", "aria-hidden": "true", text: m.e })); };
+  if (window.CARTWELL_PRODUCT_IMAGES) {
+    var img = el("img", { src: "images/" + p.id + ".jpg", alt: p.name, loading: "lazy" });
+    img.addEventListener("error", emoji);
+    node.appendChild(img);
+  } else emoji();
+}
 var products = [], byId = {}, cart = {}, cat = "All", sortBy = "rel", query = "", loading = true, loadError = "";
 var accessToken = null, user = null;
 var $ = function (s) { return document.querySelector(s); };
@@ -92,7 +101,7 @@ function loadCart() {
   } catch (e) {}
 }
 function count() { return Object.keys(cart).reduce(function (a, k) { return a + cart[k]; }, 0); }
-function sync() { $("#cnt").textContent = count(); }
+function sync() { var c = count(); $("#cnt").textContent = c; $("#cnt").hidden = c === 0; }
 function add(id, n) { cart[id] = Math.min(10, (cart[id] || 0) + n); if (cart[id] <= 0) delete cart[id]; saveCart(); sync(); }
 function cartIds() { return Object.keys(cart).filter(function (k) { return byId[k]; }); }
 function money() {
@@ -100,7 +109,7 @@ function money() {
   var ship = sub >= 49900 ? 0 : 4900;
   return { sub: sub, ship: ship, total: sub + ship };
 }
-function syncHeader() { $("#acctOpen").textContent = user ? (user.name ? user.name.split(" ")[0] : "Account") : "Sign in"; }
+function syncHeader() { $("#acctLabel").textContent = user ? (user.name ? user.name.split(" ")[0] : "Account") : "Sign in"; }
 
 /* ---------------- Catalogue ---------------- */
 async function loadProducts() {
@@ -118,7 +127,11 @@ function drawCats() {
 }
 function drawGrid() {
   var g = $("#grid"); g.textContent = "";
-  if (loading) { $("#res").textContent = ""; g.appendChild(el("div", { class: "empty", text: "Loading products. If the server was asleep, this can take up to a minute the first time." })); return; }
+  if (loading) {
+    $("#res").textContent = "Loading products. If the server was asleep, this can take up to a minute the first time.";
+    for (var s = 0; s < 8; s++) g.appendChild(el("div", { class: "card skel", "aria-hidden": "true" }, [el("div", { class: "pic" }), el("div", { class: "info" }, [el("div", { class: "sk l1" }), el("div", { class: "sk l2" })])]));
+    return;
+  }
   if (loadError) { $("#res").textContent = ""; g.appendChild(el("div", { class: "empty" }, [el("div", { text: loadError }), el("button", { class: "btn alt", type: "button", text: "Try again", onclick: loadProducts })])); return; }
   var l = products.filter(function (p) {
     var m = meta(p.id);
@@ -132,16 +145,18 @@ function drawGrid() {
     var m = meta(p.id), out = p.stock <= 0;
     var addBtn = el("button", { class: "btn", type: "button", text: out ? "Out of stock" : "Add to cart", onclick: function () { add(p.id, 1); toast("Added to cart"); } });
     if (out) addBtn.disabled = true;
-    g.appendChild(el("article", { class: "card", style: "--tint:" + m.t }, [
-      el("button", { class: "pic", type: "button", "aria-label": "View " + p.name, text: m.e, onclick: function () { openProduct(p); } }),
-      el("div", { class: "info" }, [el("h3", { text: p.name }), el("div", { class: "price", text: inr(p.price_paise) }), addBtn])
-    ]));
+    var pic = el("button", { class: "pic", type: "button", "aria-label": "View " + p.name, onclick: function () { openProduct(p); } });
+    fillVisual(pic, p, m);
+    var kids = [pic];
+    if (out || p.stock <= 5) kids.push(el("span", { class: "badge" + (out ? " out" : ""), text: out ? "Out of stock" : "Only " + p.stock + " left" }));
+    kids.push(el("div", { class: "info" }, [el("div", { class: "cat", text: m.c }), el("h3", { text: p.name }), el("div", { class: "price", text: inr(p.price_paise) }), addBtn]));
+    g.appendChild(el("article", { class: "card", style: "--tint:" + m.t }, kids));
   });
 }
 function openProduct(p) {
   var m = meta(p.id), b = $("#pdBody"); b.textContent = "";
   b.appendChild(el("div", { class: "row" }, [el("h2", { text: p.name }), el("button", { class: "btn ghost", type: "button", text: "Close", onclick: function () { $("#pd").close(); } })]));
-  b.appendChild(el("div", { style: "aspect-ratio:2/1;display:grid;place-items:center;font-size:84px;border-radius:12px;background:" + m.t, text: m.e }));
+  var big = el("div", { class: "pic big", style: "--tint:" + m.t }); fillVisual(big, p, m); b.appendChild(big);
   b.appendChild(el("p", { text: m.d }));
   b.appendChild(el("div", { class: "total", text: inr(p.price_paise) }));
   var a = el("button", { class: "btn", type: "button", text: p.stock <= 0 ? "Out of stock" : "Add to cart", onclick: function () { add(p.id, 1); toast("Added to cart"); $("#pd").close(); } });

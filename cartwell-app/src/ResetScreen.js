@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from 
 import { useAuth } from "./auth";
 import { forgotPassword, resetPassword } from "./api";
 import { useTheme } from "./theme";
+import PasswordInput from "./PasswordInput";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,7 +44,7 @@ export default function ResetScreen({ onBack }) {
       {sent && (
         <>
           <TextInput value={code} onChangeText={(v) => setCode(v.replace(/\D/g, ""))} placeholder="6-digit code from your email" placeholderTextColor={t.muted} maxLength={6} keyboardType="number-pad" textContentType="oneTimeCode" style={input} />
-          <TextInput value={password} onChangeText={setPassword} placeholder="New password (8+ characters)" placeholderTextColor={t.muted} maxLength={128} secureTextEntry autoComplete="new-password" style={input} />
+          <PasswordInput value={password} onChangeText={setPassword} placeholder="New password (8+ characters)" placeholderTextColor={t.muted} maxLength={128} autoComplete="new-password" style={input} />
         </>
       )}
       <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={{ backgroundColor: t.brand, padding: 14, borderRadius: 12, alignItems: "center", opacity: busy ? 0.6 : 1 }}>

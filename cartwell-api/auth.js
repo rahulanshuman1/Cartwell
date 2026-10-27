@@ -49,7 +49,7 @@ export function createAuth(db) {
   const google = new OAuth2Client();
   const dummyHash = hashPassword(crypto.randomBytes(8).toString("hex")); // equalises timing for unknown emails
 
-  const publicUser = (u) => ({ id: String(u._id), name: u.name || "", email: u.email ?? null, phone: u.phone ?? null });
+  const publicUser = (u) => ({ id: String(u._id), name: u.name || "", email: u.email ?? null, phone: u.phone ?? null, has_password: !!u.password_hash, created_at: u.created_at ?? null });
   const signAccess = (id) => jwt.sign({ sub: String(id) }, JWT_SECRET, { algorithm: "HS256", expiresIn: "15m", issuer: ISS });
 
   async function issueRefresh(userId, family = crypto.randomUUID()) {
@@ -297,6 +297,105 @@ export function createAuth(db) {
       res.json(publicUser(u));
     } catch (e) { next(e); }
   });
+  meRouter.patch("/", async (req, res, next) => {
+    const p = z.object({ name: Name }).strict().safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Enter your full name (2 to 60 characters)." });
+    try {
+      const u = await users.findOneAndUpdate({ _id: new ObjectId(req.user.id) }, { $set: { name: p.data.name } }, { returnDocument: "after" });
+      if (!u) return res.status(401).json({ error: "Please sign in again." });
+      res.json(publicUser(u));
+    } catch (e) { next(e); }
+  });
+  const pwLimit = lim(60 * 60_000, 10, (req) => "pw:" + req.user.id);
+  meRouter.post("/password", pwLimit, async (req, res, next) => {
+    const p = z.object({ currentPassword: z.string().min(1).max(128), newPassword: Password }).strict().safeParse(req.body);
+    if (!p.success) return res.status(400).json({ error: "Enter your current password and a new one of at least 8 characters." });
+    try {
+      const u = await users.findOne({ _id: new ObjectId(req.user.id) });
+      if (!u) return res.status(401).json({ error: "Please sign in again." });
+      if (!u.password_hash) return res.status(400).json({ error: "This account has no password yet. Use “Forgot password” on the sign-in screen to set one." });
+      if (!(await checkPassword(p.data.currentPassword, u.password_hash))) return res.status(400).json({ error: "Your current password is incorrect." });
+      const nu = await users.findOneAndUpdate({ _id: u._id }, { $set: { password_hash: await hashPassword(p.data.newPassword) } }, { returnDocument: "after" });
+      await rts.updateMany({ user_id: u._id, revoked_at: null }, { $set: { revoked_at: new Date() } }); // sign out every other device
+      res.json(await session(nu));
+    } catch (e) { next(e); }
+  });
+  /* ---------- Saved delivery addresses ---------- */
+  const addrs = db.collection("addresses");
+  const AddrFields = z.object({ name: Name, phone: Phone, pin: z.string().regex(/^\d{6}$/), addr: z.string().trim().min(8).max(120) });
+  const AddrBody = AddrFields.extend({ is_default: z.boolean().optional() }).strict();
+  const BAD_ADDR = { error: "Check the address details and try again." };
+  const publicAddr = (a) => ({ id: String(a._id), name: a.name, phone: a.phone, pin: a.pin, addr: a.addr, is_default: !!a.is_default });
+  const addrLimit = lim(60 * 60_000, 60, (req) => "ad:" + req.user.id);
+  const oid = (s) => (/^[0-9a-f]{24}$/i.test(String(s)) ? new ObjectId(s) : null);
+  const MAX_ADDRESSES = 10;
+
+  meRouter.get("/addresses", async (req, res, next) => {
+    try {
+      const rows = await addrs.find({ user_id: new ObjectId(req.user.id) }).sort({ is_default: -1, created_at: -1 }).toArray();
+      res.json(rows.map(publicAddr));
+    } catch (e) { next(e); }
+  });
+
+  meRouter.post("/addresses", addrLimit, async (req, res, next) => {
+    const p = AddrBody.safeParse(req.body);
+    if (!p.success) return res.status(400).json(BAD_ADDR);
+    const uid = new ObjectId(req.user.id);
+    try {
+      const count = await addrs.countDocuments({ user_id: uid });
+      if (count >= MAX_ADDRESSES) return res.status(400).json({ error: `You can save up to ${MAX_ADDRESSES} addresses. Remove one to add another.` });
+      const { is_default, ...fields } = p.data;
+      const makeDefault = count === 0 || is_default === true; // the first address is always the default
+      if (makeDefault) await addrs.updateMany({ user_id: uid, is_default: true }, { $set: { is_default: false } });
+      const doc = { user_id: uid, ...fields, is_default: makeDefault, created_at: new Date() };
+      const r = await addrs.insertOne(doc);
+      res.status(201).json(publicAddr({ ...doc, _id: r.insertedId }));
+    } catch (e) { next(e); }
+  });
+
+  meRouter.patch("/addresses/:id", addrLimit, async (req, res, next) => {
+    const _id = oid(req.params.id), p = AddrBody.safeParse(req.body);
+    if (!_id || !p.success) return res.status(400).json(BAD_ADDR);
+    const uid = new ObjectId(req.user.id);
+    try {
+      if (!(await addrs.findOne({ _id, user_id: uid }))) return res.status(404).json({ error: "Address not found." });
+      const { is_default, ...set } = p.data;
+      if (is_default === true) {
+        await addrs.updateMany({ user_id: uid, is_default: true, _id: { $ne: _id } }, { $set: { is_default: false } });
+        set.is_default = true;
+      }
+      const a = await addrs.findOneAndUpdate({ _id, user_id: uid }, { $set: set }, { returnDocument: "after" });
+      res.json(publicAddr(a));
+    } catch (e) { next(e); }
+  });
+
+  meRouter.post("/addresses/:id/default", addrLimit, async (req, res, next) => {
+    const _id = oid(req.params.id);
+    if (!_id) return res.status(400).json(BAD_ADDR);
+    const uid = new ObjectId(req.user.id);
+    try {
+      if (!(await addrs.findOne({ _id, user_id: uid }))) return res.status(404).json({ error: "Address not found." });
+      await addrs.updateMany({ user_id: uid, is_default: true, _id: { $ne: _id } }, { $set: { is_default: false } });
+      await addrs.updateOne({ _id, user_id: uid }, { $set: { is_default: true } });
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
+  meRouter.delete("/addresses/:id", addrLimit, async (req, res, next) => {
+    const _id = oid(req.params.id);
+    if (!_id) return res.status(400).json(BAD_ADDR);
+    const uid = new ObjectId(req.user.id);
+    try {
+      const gone = await addrs.findOneAndDelete({ _id, user_id: uid });
+      if (!gone) return res.status(404).json({ error: "Address not found." });
+      if (gone.is_default) { // promote the newest remaining address
+        const next1 = await addrs.findOne({ user_id: uid }, { sort: { created_at: -1 } });
+        if (next1) await addrs.updateOne({ _id: next1._id }, { $set: { is_default: true } });
+      }
+      res.json({ ok: true });
+    } catch (e) { next(e); }
+  });
+
   meRouter.get("/orders", async (req, res, next) => {
     try {
       const rows = await db.collection("orders")
@@ -304,7 +403,8 @@ export function createAuth(db) {
         .sort({ created_at: -1 }).limit(50).toArray();
       res.json(rows.map((o) => ({
         id: String(o._id), status: o.status, amount_paise: o.amount_paise, created_at: o.created_at, refund_status: o.refund_status ?? null,
-        items: o.items.map((i) => ({ name: i.name, qty: i.qty })),
+        ship_to: { name: o.customer?.name ?? "", addr: o.customer?.addr ?? "", pin: o.customer?.pin ?? "" },
+        items: o.items.map((i) => ({ product_id: i.product_id, name: i.name, qty: i.qty, price_paise: i.price_paise })),
       })));
     } catch (e) { next(e); }
   });

@@ -15,7 +15,8 @@ Needs MongoDB **Atlas** (or any replica set) because order payment uses a transa
 - `POST /api/payments/verify`, `POST /api/webhooks/razorpay`, `GET /api/orders/:id/status`
 - `POST /api/auth/register | login | otp/request | otp/verify | google | refresh | logout`
 - `POST /api/auth/password/forgot` `{email}` then `POST /api/auth/password/reset` `{email,code,password}` (6-digit code by email, 15 minutes, 5 tries)
-- `GET /api/me`, `GET /api/me/orders` (Bearer token)
+- `GET /api/me`, `PATCH /api/me` `{name}`, `POST /api/me/password` `{currentPassword,newPassword}`,
+  `GET|POST /api/me/addresses`, `PATCH|DELETE /api/me/addresses/:id`, `POST /api/me/addresses/:id/default` (up to 10 saved addresses), `GET /api/me/orders` (Bearer token)
 
 ## Security in place
 Server-side pricing and stock, strict input validation, signed payment verification and webhooks, idempotent payment handling in a

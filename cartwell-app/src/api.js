@@ -91,6 +91,13 @@ export const verifyOtp = (phone, code) => post("/api/auth/otp/verify", { phone, 
 export const forgotPassword = (email) => post("/api/auth/password/forgot", { email });
 export const resetPassword = (b) => post("/api/auth/password/reset", b);
 export const googleSignIn = (idToken) => post("/api/auth/google", { idToken });
+export const updateName = (name) => call("/api/me", { method: "PATCH", body: JSON.stringify({ name }) }, { auth: true });
+export const changePassword = (b) => post("/api/me/password", b, { auth: true });
+export const getAddresses = () => call("/api/me/addresses", {}, { auth: true });
+export const addAddress = (b) => post("/api/me/addresses", b, { auth: true });
+export const updateAddress = (id, b) => call(`/api/me/addresses/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(b) }, { auth: true });
+export const deleteAddress = (id) => call(`/api/me/addresses/${encodeURIComponent(id)}`, { method: "DELETE" }, { auth: true });
+export const setDefaultAddress = (id) => post(`/api/me/addresses/${encodeURIComponent(id)}/default`, {}, { auth: true });
 export const getMyOrders = () => call("/api/me/orders", {}, { auth: true });
 export async function logout() {
   const rt = await SecureStore.getItemAsync(RT_KEY).catch(() => null);

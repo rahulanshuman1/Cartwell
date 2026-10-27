@@ -168,7 +168,11 @@ function openProduct(p) {
 /* ---------------- Cart, delivery, payment ---------------- */
 var step = "cart", form = {}, note = "", paid = false;
 function head(t) { return el("div", { class: "row" }, [el("h2", { text: t }), el("button", { class: "btn ghost", type: "button", text: "Close", onclick: function () { $("#cd").close(); } })]); }
-function openCart() { step = "cart"; note = ""; drawCart(); openDlg($("#cd")); }
+function openCart() {
+  step = "cart"; note = ""; delete form.addrId; S.addrs = null;
+  if (user) loadAddrs().catch(function () { S.addrs = []; }).then(function () { if (step === "addr") drawCart(); });
+  drawCart(); openDlg($("#cd"));
+}
 function drawCart() {
   var b = $("#cdBody"); b.textContent = "";
   if (step === "cart") {
@@ -192,6 +196,15 @@ function drawCart() {
   } else if (step === "addr") {
     b.appendChild(head("Delivery details"));
     if (user) { form.name = form.name || user.name || ""; form.email = form.email || user.email || ""; form.phone = form.phone || user.phone || ""; }
+    var saved = (user && S.addrs) || [];
+    if (user && S.addrs === null) b.appendChild(el("div", { class: "note", text: "Loading your saved addresses…" }));
+    if (saved.length && form.addrId === undefined) applyAddr(saved.filter(function (a) { return a.is_default; })[0] || saved[0], true);
+    if (saved.length) {
+      var pickBox = el("div", { class: "addr-pick", role: "radiogroup", "aria-label": "Saved addresses" });
+      saved.forEach(function (a) { pickBox.appendChild(addrOption(a.id, a.name + (a.is_default ? " (Default)" : ""), a.addr + ", PIN " + a.pin + ", +91 " + a.phone)); });
+      pickBox.appendChild(addrOption("", "Use a new address", "Enter the details below"));
+      b.appendChild(pickBox);
+    }
     var defs = [["name", "Full name", "text", "name", 60], ["email", "Email", "email", "email", 80], ["phone", "Mobile number (10 digits)", "tel", "tel", 10], ["pin", "PIN code", "text", "postal-code", 6], ["addr", "Address", "text", "street-address", 120]];
     var rules = {
       name: function (v) { return v.trim().length >= 2; }, email: function (v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); },
@@ -204,10 +217,15 @@ function drawCart() {
       var e = el("div", { class: "err", "aria-live": "polite" }); i._e = e; ins[d[0]] = i;
       b.appendChild(el("label", {}, [d[1], i, e]));
     });
+    var saveBox = null;
+    if (user && (!saved.length || form.addrId === "")) {
+      saveBox = el("input", { type: "checkbox" }); saveBox.checked = form.saveAddr !== false;
+      b.appendChild(el("label", { class: "chk" }, [saveBox, "Save this address to my account"]));
+    }
     b.appendChild(el("button", { class: "btn alt", type: "button", text: "Continue to payment", onclick: function () {
       var ok = true;
       Object.keys(ins).forEach(function (k) { var good = rules[k](ins[k].value); ins[k].setAttribute("aria-invalid", String(!good)); ins[k]._e.textContent = good ? "" : msgs[k]; if (good) form[k] = ins[k].value; else ok = false; });
-      if (ok) { step = "pay"; drawCart(); }
+      if (ok) { if (saveBox) { form.saveAddr = saveBox.checked; if (saveBox.checked) saveAddress(); } step = "pay"; drawCart(); }
     } }));
     b.appendChild(el("button", { class: "btn ghost", type: "button", text: "Back to cart", onclick: function () { step = "cart"; drawCart(); } }));
   } else if (step === "pay") {
@@ -263,12 +281,31 @@ async function confirmPayment(o, r) {
 
 /* ---------------- Account ---------------- */
 var A = { rsent: false, mode: "email", isNew: false, name: "", email: "", password: "", phone: "", code: "", sent: false, wait: 0, timer: null };
-function openAccount() { drawAccount(); openDlg($("#ad")); }
+function openAccount() { P.orders = null; S.addrs = null; S.editing = null; drawAccount(); openDlg($("#ad")); }
 function drawAccount() { if (user) drawProfile(); else drawAuth(""); }
 function aHead(t) { return el("div", { class: "row" }, [el("h2", { text: t }), el("button", { class: "btn ghost", type: "button", text: "Close", onclick: function () { $("#ad").close(); } })]); }
-function field(label, key, attrs, digits) {
-  var i = el("input", Object.assign({ value: A[key] || "" }, attrs));
-  i.addEventListener("input", function () { if (digits) i.value = i.value.replace(/\D/g, ""); A[key] = i.value; });
+var EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.9 17.9A10.9 10.9 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="M14.1 14.1a3 3 0 1 1-4.2-4.2"/><path d="m1 1 22 22"/></svg>';
+// Password input with a show/hide eye button. store defaults to the sign-in form state.
+function passField(label, key, attrs, store) {
+  var obj = store || A;
+  var i = el("input", Object.assign({ type: "password", value: obj[key] || "" }, attrs));
+  i.addEventListener("input", function () { obj[key] = i.value; });
+  var t = el("button", { type: "button", "aria-label": "Show password", "aria-pressed": "false" });
+  t.innerHTML = EYE; // static icon markup, no user data
+  t.addEventListener("click", function () {
+    var show = i.type === "password";
+    i.type = show ? "text" : "password";
+    t.innerHTML = show ? EYE_OFF : EYE;
+    t.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    t.setAttribute("aria-pressed", String(show));
+  });
+  return el("label", {}, [label, el("div", { class: "pw" }, [i, t])]);
+}
+function field(label, key, attrs, digits, store) {
+  var obj = store || A;
+  var i = el("input", Object.assign({ value: obj[key] || "" }, attrs));
+  i.addEventListener("input", function () { if (digits) i.value = i.value.replace(/\D/g, ""); obj[key] = i.value; });
   return el("label", {}, [label, i]);
 }
 function drawAuth(msg) {
@@ -289,7 +326,7 @@ function drawAuth(msg) {
   if (A.mode === "email") {
     if (A.isNew) b.appendChild(field("Full name", "name", { type: "text", maxlength: "60", autocomplete: "name" }));
     b.appendChild(field("Email", "email", { type: "email", maxlength: "80", autocomplete: "email" }));
-    b.appendChild(field("Password (8+ characters)", "password", { type: "password", maxlength: "128", autocomplete: A.isNew ? "new-password" : "current-password" }));
+    b.appendChild(passField("Password (8+ characters)", "password", { maxlength: "128", autocomplete: A.isNew ? "new-password" : "current-password" }));
     var go = el("button", { class: "btn alt", type: "button", text: A.isNew ? "Create account" : "Sign in" });
     go.addEventListener("click", function () {
       if (A.isNew && A.name.trim().length < 2) { out.textContent = "Enter your full name."; return; }
@@ -337,7 +374,7 @@ function drawReset(msg) {
   b.appendChild(field("Email", "email", { type: "email", maxlength: "80", autocomplete: "email" }));
   if (A.rsent) {
     b.appendChild(field("6-digit code from your email", "code", { type: "text", inputmode: "numeric", maxlength: "6", autocomplete: "one-time-code" }, true));
-    b.appendChild(field("New password (8+ characters)", "password", { type: "password", maxlength: "128", autocomplete: "new-password" }));
+    b.appendChild(passField("New password (8+ characters)", "password", { maxlength: "128", autocomplete: "new-password" }));
   }
   var btn = el("button", { class: "btn alt", type: "button", text: A.rsent ? "Reset password" : "Send reset code" });
   btn.addEventListener("click", async function () {
@@ -371,32 +408,229 @@ function refundText(o) {
   if (s === "manual") return "An item sold out. We are sorting out your refund by hand and will be in touch. Your order reference is " + o.id.slice(0, 8) + ".";
   return "An item sold out. We are refunding " + inr(o.amount_paise) + " automatically.";
 }
-async function drawProfile() {
+var P = { tab: "orders", orders: null };
+var PW = { cur: "", next: "" };
+function initials(u) {
+  var n = (u.name || "").trim();
+  if (n) return n.split(/\s+/).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join("");
+  return String(u.email || u.phone || "?").charAt(0).toUpperCase();
+}
+async function signOut() {
+  var rt = getRT(); if (rt) await post("/api/auth/logout", { refreshToken: rt }).catch(function () {});
+  dropSession(); A.sent = false; A.mode = "email"; P.orders = null; S.addrs = null; S.editing = null; P.tab = "orders"; toast("Signed out"); drawAuth("");
+}
+function drawProfile() {
   var b = $("#adBody"); b.textContent = "";
-  b.appendChild(aHead(user.name ? "Hi, " + user.name.split(" ")[0] : "Your account"));
-  b.appendChild(el("p", { class: "note", text: [user.email, user.phone && "+91 " + user.phone].filter(Boolean).join("  |  ") }));
-  b.appendChild(el("h3", { text: "Your orders" }));
-  var box = el("div", { style: "display:grid;gap:8px" }, [el("div", { class: "note", text: "Loading…" })]);
-  b.appendChild(box);
-  b.appendChild(el("button", { class: "btn ghost", type: "button", text: "Sign out", onclick: async function () {
-    var rt = getRT(); if (rt) await post("/api/auth/logout", { refreshToken: rt }).catch(function () {});
-    dropSession(); A.sent = false; toast("Signed out"); drawAuth("");
-  } }));
-  try {
-    var list = await api("/api/me/orders", {}, "auth");
-    box.textContent = "";
-    if (!list.length) box.appendChild(el("div", { class: "note", text: "No orders yet. When you buy something while signed in, it shows up here." }));
-    list.forEach(function (o) {
-      var kids = [
-        el("div", { class: "row" }, [el("strong", { text: "Order " + o.id.slice(0, 8) }), el("span", { style: "font-weight:700;color:var(" + (o.status === "paid" ? "--ok" : "--danger") + ")", text: o.status === "paid" ? "Paid" : "Cancelled" })]),
-        el("div", { class: "note", text: new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) })
-      ];
-      o.items.forEach(function (i) { kids.push(el("div", { text: i.qty + " x " + i.name })); });
-      kids.push(el("strong", { text: inr(o.amount_paise) }));
-      if (o.status === "failed") kids.push(el("div", { class: "note", text: refundText(o) }));
-      box.appendChild(el("div", { class: "ord" }, kids));
+  b.appendChild(el("div", { class: "row" }, [el("h2", { text: "Your account" }), el("button", { class: "btn ghost", type: "button", text: "Close", onclick: function () { $("#ad").close(); } })]));
+  var since = user.created_at ? new Date(user.created_at).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : "";
+  b.appendChild(el("div", { class: "prof" }, [
+    el("div", { class: "avatar", "aria-hidden": "true", text: initials(user) }),
+    el("div", { class: "who" }, [
+      el("strong", { text: user.name || "Cartwell customer" }),
+      el("div", { class: "note", text: [user.email, user.phone && "+91 " + user.phone].filter(Boolean).join("  |  ") }),
+      el("div", { class: "note", text: since ? "Member since " + since : "" })
+    ]),
+    el("button", { class: "btn ghost sm", type: "button", text: "Sign out", onclick: signOut })
+  ]));
+  b.appendChild(el("div", { class: "seg", role: "tablist" }, [["orders", "Your orders"], ["addresses", "Addresses"], ["details", "Account details"], ["security", "Login & security"]].map(function (x) {
+    return el("button", { type: "button", role: "tab", "aria-selected": String(P.tab === x[0]), text: x[1], onclick: function () { P.tab = x[0]; drawProfile(); } });
+  })));
+  var panel = el("div", { class: "panel", role: "tabpanel" });
+  b.appendChild(panel);
+  if (P.tab === "orders") drawOrders(panel); else if (P.tab === "addresses") drawAddresses(panel); else if (P.tab === "details") drawDetails(panel); else drawSecurity(panel);
+}
+
+/* ---- Orders (Amazon-style cards) ---- */
+async function drawOrders(panel) {
+  if (P.orders === null) {
+    panel.appendChild(el("div", { class: "note", text: "Loading your orders…" }));
+    try { P.orders = await api("/api/me/orders", {}, "auth"); }
+    catch (e) {
+      panel.textContent = "";
+      panel.appendChild(el("div", { class: "msg", text: e.message }));
+      panel.appendChild(el("button", { class: "btn ghost", type: "button", text: "Try again", onclick: function () { P.orders = null; drawProfile(); } }));
+      if (!user) drawAuth("");
+      return;
+    }
+    panel.textContent = "";
+  }
+  if (!P.orders.length) {
+    panel.appendChild(el("div", { class: "empty-orders" }, [
+      el("strong", { text: "No orders yet" }),
+      el("div", { class: "note", text: "When you buy something while signed in, it shows up here." }),
+      el("button", { class: "btn alt", type: "button", text: "Start shopping", onclick: function () { $("#ad").close(); } })
+    ]));
+    return;
+  }
+  P.orders.forEach(function (o) { panel.appendChild(orderCard(o)); });
+}
+function orderCard(o) {
+  var ok = o.status === "paid";
+  var date = new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  var cell = function (k, v) { return el("div", {}, [el("div", { class: "k", text: k }), el("div", { class: "v", text: v })]); };
+  var head = el("div", { class: "oh" }, [
+    cell("ORDER PLACED", date), cell("TOTAL", inr(o.amount_paise)),
+    cell("SHIP TO", (o.ship_to && o.ship_to.name) || "-"), cell("ORDER #", o.id.slice(0, 8).toUpperCase())
+  ]);
+  var body = el("div", { class: "ob" }, [el("div", { class: "st " + (ok ? "ok" : "bad"), text: ok ? "Order placed, payment received" : "Cancelled" })]);
+  if (!ok) body.appendChild(el("div", { class: "note", text: refundText(o) }));
+  o.items.forEach(function (it) {
+    var m = meta(it.product_id), p = byId[it.product_id];
+    var again = el("button", { class: "btn ghost sm", type: "button", text: "Buy it again", onclick: function () { add(it.product_id, 1); toast("Added to cart"); } });
+    if (!p || p.stock <= 0) again.disabled = true;
+    body.appendChild(el("div", { class: "oi" }, [
+      el("div", { class: "t", style: "--tint:" + m.t, text: m.e }),
+      el("div", {}, [el("div", { class: "nm", text: it.name }), el("div", { class: "note", text: "Qty " + it.qty + (it.price_paise ? "  ·  " + inr(it.price_paise) + " each" : "") })]),
+      again
+    ]));
+  });
+  return el("article", { class: "order" }, [head, body]);
+}
+
+/* ---- Account details ---- */
+function drawDetails(panel) {
+  var msg = el("div", { class: "msg", "aria-live": "polite" });
+  var nameRow = el("div", { class: "drow" });
+  var info = function (k, v) { return el("div", {}, [el("div", { class: "k", text: k }), el("div", { class: "v", text: v })]); };
+  function view() {
+    nameRow.textContent = "";
+    nameRow.appendChild(info("Name", user.name || "Not added yet"));
+    nameRow.appendChild(el("button", { class: "btn ghost sm", type: "button", text: "Edit", onclick: edit }));
+  }
+  function edit() {
+    nameRow.textContent = "";
+    var i = el("input", { type: "text", maxlength: "60", value: user.name || "", autocomplete: "name", "aria-label": "Name" });
+    var save = el("button", { class: "btn alt sm", type: "button", text: "Save" });
+    save.addEventListener("click", async function () {
+      var v = i.value.trim();
+      if (v.length < 2) { msg.textContent = "Enter your full name."; return; }
+      save.disabled = true; msg.textContent = "";
+      try { user = await api("/api/me", { method: "PATCH", body: JSON.stringify({ name: v }) }, "auth"); syncHeader(); toast("Name updated"); drawProfile(); }
+      catch (e) { msg.textContent = e.message; save.disabled = false; }
     });
-  } catch (e) { box.textContent = ""; box.appendChild(el("div", { class: "msg", text: e.message })); if (!user) drawAuth(""); }
+    nameRow.appendChild(i); nameRow.appendChild(save);
+    nameRow.appendChild(el("button", { class: "link", type: "button", text: "Cancel", onclick: view }));
+  }
+  view();
+  panel.appendChild(nameRow);
+  panel.appendChild(el("div", { class: "drow" }, [info("Email", user.email || "Not added")]));
+  panel.appendChild(el("div", { class: "drow" }, [info("Mobile number", user.phone ? "+91 " + user.phone : "Not added")]));
+  panel.appendChild(el("div", { class: "note", text: "Email and mobile number can’t be changed here yet." }));
+  panel.appendChild(msg);
+}
+
+/* ---- Login & security ---- */
+function drawSecurity(panel) {
+  if (!user.has_password) {
+    panel.appendChild(el("strong", { text: "Password" }));
+    panel.appendChild(el("div", { class: "note", text: user.email
+      ? "This account has no password. You sign in with a phone code or Google. To set one, sign out and use “Forgot password” on the sign-in screen with your email."
+      : "This account signs in with a phone code. A password can’t be added to accounts without an email yet." }));
+    return;
+  }
+  var msg = el("div", { class: "msg", "aria-live": "polite" });
+  panel.appendChild(el("strong", { text: "Change password" }));
+  panel.appendChild(passField("Current password", "cur", { maxlength: "128", autocomplete: "current-password" }, PW));
+  panel.appendChild(passField("New password (8+ characters)", "next", { maxlength: "128", autocomplete: "new-password" }, PW));
+  var btn = el("button", { class: "btn alt", type: "button", text: "Update password" });
+  btn.addEventListener("click", async function () {
+    if (!PW.cur) { msg.textContent = "Enter your current password."; return; }
+    if (PW.next.length < 8) { msg.textContent = "Use a new password of at least 8 characters."; return; }
+    btn.disabled = true; msg.textContent = "";
+    try {
+      saveSession(await post("/api/me/password", { currentPassword: PW.cur, newPassword: PW.next }, "auth"));
+      PW.cur = ""; PW.next = ""; toast("Password updated"); drawProfile();
+    } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+  });
+  panel.appendChild(btn);
+  panel.appendChild(el("div", { class: "note", text: "Changing your password signs you out on your other devices." }));
+  panel.appendChild(msg);
+}
+
+/* ---- Saved addresses (account tab + checkout helpers) ---- */
+var S = { addrs: null, editing: null };
+async function loadAddrs() { S.addrs = await api("/api/me/addresses", {}, "auth"); }
+function applyAddr(a, silent) { form.addrId = a.id; form.name = a.name; form.phone = a.phone; form.pin = a.pin; form.addr = a.addr; if (!silent) drawCart(); }
+function addrOption(id, title, sub) {
+  var r = el("input", { type: "radio", name: "deliver", value: id });
+  r.checked = form.addrId === id;
+  r.addEventListener("change", function () {
+    if (id === "") { form.addrId = ""; form.pin = ""; form.addr = ""; drawCart(); }
+    else applyAddr(S.addrs.filter(function (a) { return a.id === id; })[0]);
+  });
+  return el("label", { class: "opt" }, [r, el("div", {}, [el("strong", { text: title }), el("div", { class: "note", text: sub })])]);
+}
+function saveAddress() { // quietly remember a new checkout address for signed-in customers
+  var dup = (S.addrs || []).some(function (a) { return a.name === form.name.trim() && a.phone === form.phone && a.pin === form.pin && a.addr === form.addr.trim(); });
+  if (dup) return;
+  post("/api/me/addresses", { name: form.name.trim(), phone: form.phone, pin: form.pin, addr: form.addr.trim() }, "auth")
+    .then(function () { return loadAddrs(); }).catch(function () {});
+}
+async function drawAddresses(panel) {
+  if (S.addrs === null) {
+    panel.appendChild(el("div", { class: "note", text: "Loading your addresses…" }));
+    try { await loadAddrs(); }
+    catch (e) {
+      panel.textContent = "";
+      panel.appendChild(el("div", { class: "msg", text: e.message }));
+      panel.appendChild(el("button", { class: "btn ghost", type: "button", text: "Try again", onclick: function () { S.addrs = null; drawProfile(); } }));
+      return;
+    }
+    panel.textContent = "";
+  }
+  if (S.editing) { panel.appendChild(addressForm(S.editing === "new" ? null : S.addrs.filter(function (a) { return a.id === S.editing; })[0])); return; }
+  var grid = el("div", { class: "addr-grid" });
+  S.addrs.forEach(function (a) { grid.appendChild(addressCard(a)); });
+  if (S.addrs.length < 10) grid.appendChild(el("button", { class: "addr-add", type: "button", onclick: function () { S.editing = "new"; drawProfile(); } }, [el("span", { class: "plus", text: "+" }), "Add address"]));
+  panel.appendChild(grid);
+  if (!S.addrs.length) panel.appendChild(el("div", { class: "note", text: "You have no saved addresses yet. Add one to check out faster." }));
+}
+function addressCard(a) {
+  var card = el("article", { class: "addr-card" + (a.is_default ? " def" : "") });
+  if (a.is_default) card.appendChild(el("span", { class: "pill", text: "Default" }));
+  card.appendChild(el("strong", { text: a.name }));
+  card.appendChild(el("div", { text: a.addr }));
+  card.appendChild(el("div", { text: "PIN " + a.pin }));
+  card.appendChild(el("div", { class: "note", text: "Mobile: +91 " + a.phone }));
+  var acts = el("div", { class: "acts" });
+  acts.appendChild(el("button", { class: "link", type: "button", text: "Edit", onclick: function () { S.editing = a.id; drawProfile(); } }));
+  acts.appendChild(el("button", { class: "link", type: "button", text: "Remove", onclick: async function () {
+    if (!window.confirm("Remove this address?")) return;
+    try { await api("/api/me/addresses/" + a.id, { method: "DELETE" }, "auth"); S.addrs = null; toast("Address removed"); drawProfile(); } catch (e) { toast(e.message); }
+  } }));
+  if (!a.is_default) acts.appendChild(el("button", { class: "link", type: "button", text: "Set as default", onclick: async function () {
+    try { await post("/api/me/addresses/" + a.id + "/default", {}, "auth"); S.addrs = null; toast("Default address updated"); drawProfile(); } catch (e) { toast(e.message); }
+  } }));
+  card.appendChild(acts);
+  return card;
+}
+function addressForm(a) {
+  var F = { name: a ? a.name : (user.name || ""), phone: a ? a.phone : (user.phone || ""), pin: a ? a.pin : "", addr: a ? a.addr : "" };
+  var box = el("div", { class: "panel" });
+  var msg = el("div", { class: "msg", "aria-live": "polite" });
+  box.appendChild(el("strong", { text: a ? "Edit address" : "Add a new address" }));
+  box.appendChild(field("Full name", "name", { type: "text", maxlength: "60", autocomplete: "name" }, false, F));
+  box.appendChild(field("Mobile number (10 digits)", "phone", { type: "tel", inputmode: "numeric", maxlength: "10", autocomplete: "tel" }, true, F));
+  box.appendChild(field("PIN code", "pin", { type: "text", inputmode: "numeric", maxlength: "6", autocomplete: "postal-code" }, true, F));
+  box.appendChild(field("Address", "addr", { type: "text", maxlength: "120", autocomplete: "street-address" }, false, F));
+  var chk = el("input", { type: "checkbox" }); chk.checked = a ? a.is_default : !(S.addrs && S.addrs.length);
+  box.appendChild(el("label", { class: "chk" }, [chk, "Make this my default address"]));
+  var save = el("button", { class: "btn alt", type: "button", text: "Save address" });
+  save.addEventListener("click", async function () {
+    var bad = F.name.trim().length < 2 ? "Enter the full name." : !/^[6-9]\d{9}$/.test(F.phone) ? "Enter a 10-digit Indian mobile number." : !/^\d{6}$/.test(F.pin) ? "Enter a 6-digit PIN code." : F.addr.trim().length < 8 ? "Enter the full address." : "";
+    if (bad) { msg.textContent = bad; return; }
+    save.disabled = true; msg.textContent = "";
+    var body = { name: F.name.trim(), phone: F.phone, pin: F.pin, addr: F.addr.trim(), is_default: chk.checked };
+    try {
+      if (a) await api("/api/me/addresses/" + a.id, { method: "PATCH", body: JSON.stringify(body) }, "auth");
+      else await post("/api/me/addresses", body, "auth");
+      S.editing = null; S.addrs = null; toast("Address saved"); drawProfile();
+    } catch (e) { msg.textContent = e.message; save.disabled = false; }
+  });
+  box.appendChild(save);
+  box.appendChild(el("button", { class: "btn ghost", type: "button", text: "Cancel", onclick: function () { S.editing = null; drawProfile(); } }));
+  box.appendChild(msg);
+  return box;
 }
 
 /* ---------------- Start ---------------- */

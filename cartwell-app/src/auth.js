@@ -14,6 +14,6 @@ export function AuthProvider({ children }) {
 
   const adopt = async (s) => { await saveSession(s); setUser(s.user); };
   const signOut = async () => { await logout(); setUser(null); };
-  return <Ctx.Provider value={{ user, ready, adopt, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, setUser, ready, adopt, signOut }}>{children}</Ctx.Provider>;
 }
 export const useAuth = () => useContext(Ctx);

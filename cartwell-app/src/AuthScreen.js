@@ -5,6 +5,7 @@ import { register, login, requestOtp, verifyOtp, googleSignIn } from "./api";
 import { getGoogleIdToken } from "./google";
 import { useTheme } from "./theme";
 import ResetScreen from "./ResetScreen";
+import PasswordInput from "./PasswordInput";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -89,7 +90,7 @@ export default function AuthScreen() {
         <View style={{ gap: 10 }}>
           {isNew && <TextInput value={name} onChangeText={setName} placeholder="Full name" placeholderTextColor={t.muted} maxLength={60} autoComplete="name" style={input} />}
           <TextInput value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={t.muted} maxLength={80} keyboardType="email-address" autoCapitalize="none" autoComplete="email" style={input} />
-          <TextInput value={password} onChangeText={setPassword} placeholder="Password (8+ characters)" placeholderTextColor={t.muted} maxLength={128} secureTextEntry autoComplete={isNew ? "new-password" : "current-password"} style={input} />
+          <PasswordInput value={password} onChangeText={setPassword} placeholder="Password (8+ characters)" placeholderTextColor={t.muted} maxLength={128} autoComplete={isNew ? "new-password" : "current-password"} style={input} />
           <Btn onPress={submitEmail} label={isNew ? "Create account" : "Sign in"} style={primary} color={t.onBrand} />
           {!isNew && (
             <Pressable accessibilityRole="button" onPress={() => { setForgot(true); setMsg(""); }}>

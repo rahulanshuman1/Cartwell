@@ -93,7 +93,7 @@ app.post("/api/webhooks/razorpay", express.raw({ type: "application/json", limit
   }
 });
 
-app.use(cors({ origin: ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean), methods: ["GET", "POST"] }));
+app.use(cors({ origin: ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean), methods: ["GET", "POST", "PATCH", "DELETE"] }));
 app.use(express.json({ limit: "20kb" }));
 app.use("/api/", rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false }));
 

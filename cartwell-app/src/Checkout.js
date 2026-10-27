@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import RazorpayCheckout from "react-native-razorpay";
-import { createOrder, verifyPayment } from "./api";
+import { createOrder, verifyPayment, getAddresses, addAddress } from "./api";
 import { useCart } from "./cart";
 import { useAuth } from "./auth";
 import { useTheme, inr } from "./theme";
@@ -24,6 +24,19 @@ export default function Checkout({ products, onClose }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [done, setDone] = useState(null);
+  const [saved, setSaved] = useState([]);
+  const [pick, setPick] = useState(undefined); // undefined = not chosen yet, "" = new address, otherwise a saved address id
+  const [saveIt, setSaveIt] = useState(true);
+
+  const applyAddr = (a) => { setPick(a.id); setF((prev) => ({ ...prev, name: a.name, phone: a.phone, pin: a.pin, addr: a.addr })); };
+  useEffect(() => {
+    if (!user) return;
+    getAddresses().then((list) => {
+      setSaved(list);
+      const d = list.find((a) => a.is_default) || list[0];
+      if (d) applyAddr(d);
+    }).catch(() => {}); // saved addresses are a convenience, so checkout works without them
+  }, [user]);
 
   const sub = Object.keys(cart).reduce((a, id) => a + (products[id]?.price_paise || 0) * cart[id], 0);
   const total = sub + (sub >= 49900 ? 0 : 4900);
@@ -33,6 +46,10 @@ export default function Checkout({ products, onClose }) {
     FIELDS.forEach((x) => { if (!x.ok(f[x.k])) e[x.k] = x.err; });
     setErrs(e);
     if (Object.keys(e).length) return;
+    const same = saved.some((a) => a.name === f.name.trim() && a.phone === f.phone && a.pin === f.pin && a.addr === f.addr.trim());
+    if (user && saveIt && (pick === "" || !saved.length) && !same) {
+      addAddress({ name: f.name.trim(), phone: f.phone, pin: f.pin, addr: f.addr.trim() }).catch(() => {});
+    }
     setBusy(true); setMsg("");
     try {
       const items = Object.keys(cart).map((id) => ({ id: Number(id), qty: cart[id] }));
@@ -80,6 +97,23 @@ export default function Checkout({ products, onClose }) {
           <Text style={{ fontSize: 24, fontWeight: "800", color: t.ink }}>Delivery details</Text>
           <Pressable accessibilityRole="button" onPress={onClose} disabled={busy}><Text style={{ color: t.brand, fontWeight: "700" }}>Close</Text></Pressable>
         </View>
+        {!!user && saved.length > 0 && (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: t.ink, fontWeight: "700" }}>Deliver to</Text>
+            {saved.map((a) => (
+              <Pressable key={a.id} accessibilityRole="radio" accessibilityState={{ selected: pick === a.id }} onPress={() => applyAddr(a)}
+                style={{ borderWidth: 1.5, borderColor: pick === a.id ? t.brand : t.line, backgroundColor: t.card, borderRadius: 12, padding: 12 }}>
+                <Text style={{ color: t.ink, fontWeight: "700" }}>{a.name}{a.is_default ? "  (Default)" : ""}</Text>
+                <Text style={{ color: t.muted }}>{a.addr}, PIN {a.pin}</Text>
+                <Text style={{ color: t.muted }}>+91 {a.phone}</Text>
+              </Pressable>
+            ))}
+            <Pressable accessibilityRole="radio" accessibilityState={{ selected: pick === "" }} onPress={() => { setPick(""); setF({ ...f, pin: "", addr: "" }); }}
+              style={{ borderWidth: 1.5, borderColor: pick === "" ? t.brand : t.line, backgroundColor: t.card, borderRadius: 12, padding: 12 }}>
+              <Text style={{ color: t.ink, fontWeight: "700" }}>Use a new address</Text>
+            </Pressable>
+          </View>
+        )}
         {FIELDS.map((x) => (
           <View key={x.k}>
             <Text style={{ color: t.muted, marginBottom: 4 }}>{x.label}</Text>
@@ -92,6 +126,12 @@ export default function Checkout({ products, onClose }) {
             {!!errs[x.k] && <Text style={{ color: t.danger, fontSize: 13, marginTop: 2 }}>{errs[x.k]}</Text>}
           </View>
         ))}
+        {!!user && (pick === "" || saved.length === 0) && (
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: t.ink }}>Save this address to my account</Text>
+            <Switch value={saveIt} onValueChange={setSaveIt} />
+          </View>
+        )}
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
           <Text style={{ fontSize: 20, fontWeight: "800", color: t.ink }}>Total</Text>
           <Text style={{ fontSize: 20, fontWeight: "800", color: t.ink }}>{inr(total)}</Text>

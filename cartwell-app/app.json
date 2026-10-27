@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Cartwell",
+    "slug": "cartwell",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": { "bundleIdentifier": "com.example.cartwell", "supportsTablet": false },
+    "android": { "package": "com.example.cartwell", "allowBackup": false },
+    "plugins": [
+      "expo-secure-store",
+      ["@react-native-google-signin/google-signin", { "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID" }]
+    ]
+  }
+}

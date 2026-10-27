@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cartwell – Everyday shopping</title>
+<meta name="description" content="Daily essentials delivered fast. Secure checkout.">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div class="logo">Cartwell</div>
+  <form class="search" role="search" id="sf"><input id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="60" autocomplete="off"><button type="submit">Search</button></form>
+  <button class="acct" id="acctOpen" type="button">Sign in</button>
+  <button class="cartbtn" id="cartOpen" type="button" aria-label="Open cart" style="margin-left:0">Cart (<span id="cnt">0</span>)</button>
+</header>
+<main class="wrap">
+  <section class="hero"><span class="tag">Festive sale</span><h1>Daily essentials, delivered fast</h1><p>Free delivery on orders above ₹499. Easy 10-day returns on everything.</p></section>
+  <div class="bar" id="cats" role="group" aria-label="Categories"></div>
+  <div class="tools"><span id="res" aria-live="polite" class="note"></span>
+    <label style="display:flex;align-items:center;gap:6px">Sort <select id="sort"><option value="rel">Featured</option><option value="lo">Price: low to high</option><option value="hi">Price: high to low</option></select></label></div>
+  <div class="grid" id="grid"></div>
+  <div class="trust"><div>Secure checkout. Card and UPI details are entered only on Razorpay’s page, never on this site.</div><div>Free returns within 10 days on most items.</div><div>Sign in to see your order history, or check out as a guest.</div></div>
+</main>
+<dialog id="pd"><div class="dlg" id="pdBody"></div></dialog>
+<dialog id="cd"><div class="dlg" id="cdBody"></div></dialog>
+<dialog id="ad"><div class="dlg" id="adBody"></div></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="config.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>

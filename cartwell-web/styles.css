@@ -1,0 +1,72 @@
+:root{--bg:#f5f7f6;--surface:#fff;--ink:#0f1f1c;--muted:#5d6b67;--line:#dde4e1;--brand:#0f4c45;--brand-ink:#fff;--accent:#f2a33a;--danger:#b42318;--ok:#157347;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0c1513;--surface:#142320;--ink:#eaf2ef;--muted:#9fb0aa;--line:#264039;--brand:#3fb59f;--brand-ink:#04211c;--accent:#f2a33a;--danger:#ff8a80;--ok:#6fd3a0}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0c1513;--surface:#142320;--ink:#eaf2ef;--muted:#9fb0aa;--line:#264039;--brand:#3fb59f;--brand-ink:#04211c;--accent:#f2a33a;--danger:#ff8a80;--ok:#6fd3a0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 "DM Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","DM Sans",system-ui,sans-serif;line-height:1.1;margin:0}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--brand);color:var(--brand-ink);display:flex;gap:10px;align-items:center;padding:10px 14px;flex-wrap:wrap}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--brand);z-index:11}
+.logo{font:800 22px "Bricolage Grotesque",sans-serif;letter-spacing:-.5px}
+.search{flex:1 1 220px;display:flex;order:3;width:100%}
+@media(min-width:700px){.search{order:0;width:auto}}
+.search input{flex:1;min-width:0;border:0;border-radius:8px 0 0 8px;padding:10px 12px;background:#fff;color:#0f1f1c}
+.search button{border:0;border-radius:0 8px 8px 0;background:var(--accent);color:#2b1a00;padding:0 14px;font-weight:700}
+.cartbtn{background:transparent;border:2px solid currentColor;color:inherit;border-radius:999px;padding:6px 14px;font-weight:700;margin-left:auto}
+@media(min-width:700px){.cartbtn{margin-left:0}}
+.wrap{max-width:1180px;margin:0 auto;padding:16px 14px 80px}
+.hero{background:var(--brand);color:var(--brand-ink);border-radius:16px;padding:28px 22px;display:grid;gap:8px;margin-bottom:18px}
+.hero h1{font-size:clamp(28px,6vw,48px);max-width:14ch}
+.hero p{margin:0;max-width:44ch;opacity:.9}
+.hero .tag{display:inline-block;background:var(--accent);color:#2b1a00;font-weight:700;border-radius:6px;padding:2px 10px;width:max-content;font-size:14px}
+.bar{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;align-items:center}
+.chip{white-space:nowrap;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tools{display:flex;justify-content:space-between;align-items:center;margin:12px 0;gap:10px}
+.tools select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;text-align:left;padding:0}
+.card .pic{aspect-ratio:1;display:grid;place-items:center;font-size:56px;border:0;background:var(--tint);width:100%}
+.card .info{padding:10px 12px 12px;display:grid;gap:4px}
+.card h3{font-size:16px;font-weight:600}
+.price{font-weight:700}
+.old{color:var(--muted);text-decoration:line-through;font-weight:400;font-size:14px;margin-left:6px}
+.off{color:var(--ok);font-size:14px;font-weight:700}
+.stars{color:#b7791f;font-size:14px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-weight:700;background:var(--accent);color:#2b1a00}
+.btn.alt{background:var(--brand);color:var(--brand-ink)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.empty{padding:40px 10px;text-align:center;color:var(--muted)}
+dialog{border:0;border-radius:16px;padding:0;max-width:min(520px,94vw);width:100%;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.dlg{padding:20px;display:grid;gap:12px;max-height:85vh;overflow:auto}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.line{display:grid;grid-template-columns:48px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.line .t{width:48px;height:48px;border-radius:8px;display:grid;place-items:center;font-size:26px;background:var(--tint)}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+.qty button{border:0;background:none;width:30px;height:30px;font-size:18px}
+.qty span{min-width:24px;text-align:center}
+label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+label input{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--ink)}
+label input[aria-invalid="true"]{border-color:var(--danger)}
+.err{color:var(--danger);font-size:13px;min-height:1em}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.total{font:800 20px "Bricolage Grotesque",sans-serif}
+.note{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:flex-start}
+.trust{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:28px;color:var(--muted);font-size:14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:30}
+@media(prefers-reduced-motion:no-preference){.hero{animation:in .5s ease-out}@keyframes in{from{opacity:0;transform:translateY(8px)}}}
+.acct{background:transparent;border:2px solid currentColor;color:inherit;border-radius:999px;padding:6px 14px;font-weight:700}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:8px;font-weight:700}
+.seg button[aria-selected="true"]{background:var(--brand);color:var(--brand-ink)}
+.link{background:none;border:0;color:var(--brand);font-weight:700;padding:6px}
+.ord{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:4px}
+.msg{color:var(--danger);min-height:1.2em}
+.empty button{margin-top:10px}
+

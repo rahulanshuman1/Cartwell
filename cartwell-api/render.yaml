@@ -1,0 +1,28 @@
+# Optional Blueprint. This file must sit at the ROOT of your GitHub repo.
+# If cartwell-api is its own repo, delete the rootDir line.
+services:
+  - type: web
+    name: cartwell-api
+    runtime: node
+    plan: free
+    rootDir: cartwell-api
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - { key: NODE_VERSION, value: "20" }
+      - { key: NODE_ENV, value: production }
+      - { key: MONGODB_DB, value: cartwell }
+      - { key: JWT_SECRET, generateValue: true }
+      - { key: OTP_SECRET, generateValue: true }
+      - { key: MONGODB_URI, sync: false }
+      - { key: ALLOWED_ORIGINS, sync: false }
+      - { key: RAZORPAY_KEY_ID, sync: false }
+      - { key: RAZORPAY_KEY_SECRET, sync: false }
+      - { key: RAZORPAY_WEBHOOK_SECRET, sync: false }
+      - { key: GOOGLE_CLIENT_IDS, sync: false }
+      - { key: RESEND_API_KEY, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+      - { key: TWILIO_ACCOUNT_SID, sync: false }
+      - { key: TWILIO_AUTH_TOKEN, sync: false }
+      - { key: TWILIO_FROM, sync: false }
